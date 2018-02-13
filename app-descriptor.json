@@ -1,0 +1,194 @@
+{
+  "baseUrl": "${host}",
+  "key": "refapp",
+  "lifecycle": {
+    "installed": "/installed",
+    "uninstalled": "/uninstalled"
+  },
+
+  "modules": {
+    "chat:bot": [
+      {
+        "key": "refapp-bot",
+        "mention": {
+          "url": "/bot-mention"
+        },
+        "directMessage": {
+          "url": "/bot-mention"
+        }
+      }
+    ],
+    "chat:inputAction": [
+      {
+        "key": "refapp-input-action",
+        "name": {
+          "value": "Open App Dialog"
+        },
+        "target": "refapp-action-openDialog"
+      }
+    ],
+    "chat:dialog": [
+      {
+        "key": "refapp-dialog",
+        "title": {
+          "value": "App Dialog"
+        },
+        "options": {
+          "size": {
+            "width": "500px",
+            "height": "300px"
+          },
+          "primaryAction":  {
+            "key": "action-appendMessage",
+            "name": {
+              "value": "Append Message"
+            }
+          },
+          "secondaryActions": [
+            {
+              "key": "action-close",
+              "name": {
+                "value": "Close"
+              }
+            },
+            {
+              "key": "action-openSidebar",
+              "name": {
+                "value": "Open Sidebar"
+              }
+            },
+            {
+              "key": "action-disableButton",
+              "name": {
+                "value": "Disable Button"
+              }
+            }
+          ]
+        },
+        "url": "/module/dialog",
+        "authentication": "jwt"
+      },
+      {
+        "key": "refapp-dialog-config",
+        "title": {
+          "value": "App Configuration"
+        },
+        "options": {
+          "size": {
+            "width": "500px",
+            "height": "300px"
+          },
+          "primaryAction":  {
+            "key": "action-save",
+            "name": {
+              "value": "Save"
+            }
+          },
+          "secondaryActions": [
+            {
+              "key": "action-close",
+              "name": {
+                "value": "Close"
+              }
+            }
+          ]
+        },
+        "url": "/module/config",
+        "authentication": "jwt"
+      }
+    ],
+    "chat:sidebar": [
+      {
+        "key": "refapp-sidebar",
+        "name": {
+          "value": "App Sidebar"
+        },
+        "url": "/module/sidebar",
+        "authentication": "jwt"
+      }
+    ],
+    "chat:glance": [
+      {
+        "key": "refapp-glance",
+        "name": {
+          "value": "App Glance"
+        },
+        "icon": {
+          "url": "/img/logo.png",
+          "url@2x": "/img/logo.png"
+        },
+        "target": "refapp-action-openSidebar",
+        "queryUrl": "/module/glance/state",
+        "authentication": "jwt"
+      }
+    ],
+    "chat:messageAction" :[
+      {
+        "key": "refapp-message-action-dialog",
+        "name": {
+          "value": "Send to Dialog"
+        },
+        "target": "refapp-action-openDialog"
+      },
+      {
+        "key": "refapp-message-action-service",
+        "name": {
+          "value": "Call Service"
+        },
+        "target": "refapp-action-callService"
+      }
+    ],
+    "chat:configuration" : [
+      {
+        "key": "refapp-config",
+        "page": {
+          "target": "refapp-dialog-config"
+        },
+        "state": {
+          "url": "/module/config/state"
+        },
+        "authentication": "jwt"
+      }
+    ],
+    "chat:webhook": [
+      {
+        "key": "refapp-webhook-conversation",
+        "event": "conversation:updates",
+        "url": "/conversation-updated"
+      },
+      {
+        "key": "refapp-webhook-roster",
+        "event": "roster:updates",
+        "url": "/roster-updated"
+      }
+    ],
+    "chat:actionTarget" : [
+      {
+        "key": "refapp-action-openSidebar",
+        "openSidebar": {
+          "key": "refapp-sidebar"
+        }
+      },
+      {
+        "key": "refapp-action-openDialog",
+        "openDialog": {
+          "key": "refapp-dialog"
+        }
+      },
+      {
+        "key": "refapp-action-callService",
+        "callService": {
+          "url": "/module/action/refapp-service"
+        }
+      },
+      {
+        "key": "refapp-action-callService-updateMessage",
+        "callService": {
+          "url": "/module/action/refapp-service-updateMessage"
+        }
+      }
+
+    ]
+  }
+}
+

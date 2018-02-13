@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+
+<!-- Sample implementation of a chat:dialog module -->
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>App Dialog</title>
+
+  <!-- Import AtlasKit: https://atlaskit.atlassian.com -->
+  <link rel="stylesheet" href="node_modules/@atlaskit/css-reset/dist/bundle.css"/>
+  <link rel="stylesheet" href="node_modules/@atlaskit/reduced-ui-pack/dist/bundle.css"/>
+
+  <!-- Import JQuery -->
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+
+  <!-- Import the Stride Javascript API -->
+  <script src='https://dev-lib.stride.com/javascript/simple-xdm.js'></script>
+
+  <script>
+    $(document).ready(function(){
+
+      AP.register({
+
+        "message-action-fired" : function(source, target, context, parameters) {
+          console.log(
+            'This dialog was opened from a message action, with the following data: '
+            + JSON.stringify(arguments));
+        },
+
+        "dialog-button-clicked": function(event, closeDialog) {
+
+          /**
+           * Open a sidebar from the dialog
+           */
+          if (event.action === "action-openSidebar") {
+            AP.sidebar.open({key:'refapp-sidebar'});
+            closeDialog(false);
+          }
+
+          /**
+           * Append a message to the chat input box
+           */
+          if (event.action === "action-appendMessage") {
+            AP.chat.setMessageBody({
+                  "version": 1,
+                  "type": "doc",
+                  "content": [
+                    {
+                      "type": "paragraph",
+                      "content": [
+                        {
+                          "type": "text",
+                          "text": "Just appended "
+                        },
+                        {
+                          "type": "text",
+                          "text": $("#message").val(),
+                          "marks": [
+                            {
+                              "type": "strong"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+            );
+            closeDialog(false);
+          }
+
+          /**
+           * Disable the primary button for a second
+           */
+          if (event.action === "action-disableButton") {
+
+            function enablePrimaryButton(enabled) {
+              var dialogOptions = {
+                options: {
+                  "primaryAction": {
+                    "key": "action-appendMessage",
+                    "name": {
+                      "value": "Append Message"
+                    },
+                    "enabled": enabled
+                  }
+                }
+              };
+              AP.dialog.update(dialogOptions);
+            }
+
+            enablePrimaryButton(false);
+            setTimeout(function(){
+              enablePrimaryButton(true);
+            }, 1000);
+            closeDialog(false);
+          }
+
+
+          if (event.action === "action-close") {
+            closeDialog(true);
+          }
+        }
+      })
+    });
+  </script>
+</head>
+<body>
+<p>This is a modal dialog for your app. You can use it to trigger workflows or show forms.</p>
+<form>
+  <div class="ak-field-group">
+    <label for="message">Text to append to chat</label>
+    <input type="text" class="ak-field-text" id="message" name="message" placeholder="G'day mate!" autofocus>
+  </div>
+</form>
+
+</body>
+</html>
