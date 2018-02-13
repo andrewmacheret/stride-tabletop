@@ -21,7 +21,9 @@ source .env && \
     -e "GAME_API_KEY=${GAME_API_KEY}" \
     -e "STRIDE_CLIENT_ID=${STRIDE_CLIENT_ID}" \
     -e "STRIDE_SECRET_ID=${STRIDE_SECRET_ID}" \
+    -e "STORE_DIRECTORY=/data" \
     -e "PORT=80" \
+    -v "$(pwd)/store:/data" \
     --name stride-tabletop \
     stride-tabletop
 ```

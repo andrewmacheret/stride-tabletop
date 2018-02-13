@@ -10,14 +10,15 @@ const jsonpath = require('jsonpath');
 const Document = require('adf-builder').Document;
 const prettyjson = require('prettyjson');
 const ChessApi = require('./chess-api');
+const jsonfile = require('jsonfile')
 
 function prettify_json(data, options = {}) {
   return '{\n' + prettyjson.render(data, options) + '\n}';
 }
 
-const {PORT = 8000, STRIDE_CLIENT_ID, STRIDE_SECRET_ID, ENV = 'production'} = process.env;
-if (!STRIDE_CLIENT_ID || !STRIDE_SECRET_ID) {
-  console.error("Usage: PORT=<http port> STRIDE_CLIENT_ID=<app client ID> STRIDE_SECRET_ID=<app client secret> node app.js");
+const {PORT = 8000, STRIDE_CLIENT_ID, STRIDE_SECRET_ID, STORE_DIRECTORY, ENV = 'production'} = process.env;
+if (!STRIDE_CLIENT_ID || !STRIDE_SECRET_ID || !STORE_DIRECTORY) {
+  console.error("Usage: PORT=<http port> STRIDE_CLIENT_ID=<app client ID> STRIDE_SECRET_ID=<app client secret> STORE_DIRECTORY=<dir> node app.js");
   process.exit(1);
 }
 
@@ -41,8 +42,8 @@ const stride = require('./stride').factory({
  * This implementation doesn't make any assumption in terms of data store, frameworks used, etc.
  * It doesn't have proper persistence, everything is just stored in memory.
  */
-const configStore = {};
-const installationStore = {};
+const configStore = jsonfile.readFileSync(`${STORE_DIRECTORY}/config.json`, {throws:false}) || {};
+const installationStore = jsonfile.readFileSync(`${STORE_DIRECTORY}/installations.json`, {throws:false}) || {};
 
 
 /**
@@ -70,6 +71,7 @@ app.post('/installed', (req, res, next) => {
       conversationId,
       installedBy: userId,
     }
+    jsonfile.writeFileSync(`${STORE_DIRECTORY}/installations.json`, configStore)
     console.log('  App installed in this conversation:', prettify_json(installationStore[conversationId]));
   }
   else
@@ -93,7 +95,8 @@ app.post('/uninstalled', (req, res) => {
   // note: we can't send message in the room anymore
 
   // Remove the installation details
-  installationStore[conversationId] = null;
+  delete installationStore[conversationId]
+  jsonfile.writeFileSync(`${STORE_DIRECTORY}/installations.json`, installationStore)
 
   res.sendStatus(204);
 });
@@ -136,9 +139,52 @@ app.post('/uninstalled', (req, res) => {
 )
 
 class GameStore {
-  constructor() {
-    this.gameData = new Map() // by id
-    this.games = new Map() // cloudId:conversationId:playerId:gameName -> game_id
+  constructor(jsonFile) {
+    this.jsonFile = jsonFile
+    this.load()
+  }
+
+  load() {
+    const objectToMapOfSets = obj => {
+      const map = new Map()
+      Object.entries(obj).forEach(pair => {map.set(pair[0], new Set(pair[1]))})
+      return map
+    }
+    const objectToMapOfObjects = obj => {
+      const map = new Map()
+      Object.entries(obj).forEach(pair => {map.set(pair[0], pair[1])})
+      return map
+    }
+
+    const input = jsonfile.readFileSync(this.jsonFile, {throws:false}) || {
+      gameData: {},
+      games: {}
+    }
+
+    this.gameData = objectToMapOfObjects(input.gameData) // by id -> game jsons
+    this.games = objectToMapOfSets(input.games) // cloudId:conversationId:playerId:gameName -> sets of game_id
+  }
+
+  save() {
+    console.log(`Saving games and game data to ${this.jsonFile}`)
+
+    const mapOfSetsToObject = map => {
+      const obj = {}
+      ;[...map].forEach(pair => {obj[pair[0]] = [...pair[1]]})
+      return obj
+    }
+    const mapOfObjectsToObject = map => {
+      const obj = {}
+      ;[...map].forEach(pair => {obj[pair[0]] = pair[1]})
+      return obj
+    }
+
+    const output = {
+      gameData: mapOfObjectsToObject(this.gameData),
+      games: mapOfSetsToObject(this.games)
+    }
+    
+    jsonfile.writeFileSync(this.jsonFile, output)
   }
 
   getGameIds({cloudId, conversationId, gameName, playerIds}) {
@@ -177,6 +223,8 @@ class GameStore {
       this.addToValues(`${cloudId}:${conversationId}:${playerId}:_all`, gameId)
       this.addToValues(`${cloudId}:${conversationId}:${playerId}:${gameName}`, gameId)
     })
+
+    this.save()
   }
 
   removeGame({cloudId, conversationId, gameName, playerIds, gameId}) {
@@ -196,6 +244,8 @@ class GameStore {
       this.removeFromValues(`${cloudId}:${conversationId}:${playerId}:_all`, gameId)
       this.removeFromValues(`${cloudId}:${conversationId}:${playerId}:${gameName}`, gameId)
     })
+
+    this.save()
   }
 
   addToValues(key, value) {
@@ -230,7 +280,7 @@ function shuffle(array) {
 
 const BOT_NAME = '@Tabletop'
 
-const gameStore = new GameStore()
+const gameStore = new GameStore(`${STORE_DIRECTORY}/games.json`)
 
 async function gameBot({reqBody}) {
   const cloudId = reqBody.cloudId;
@@ -316,6 +366,9 @@ async function gameBot({reqBody}) {
           gameStore.removeGame({cloudId, conversationId, gameName, playerIds, gameId})
 
           return await replyWithMessage(reqBody, ':checkered_flag:', game.current_game_state.state.message)
+        } else {
+          // trigger a save because one won't be triggered otherwise
+          gameStore.save()
         }
 
         return await promptNextMove(game, gameName, players)
@@ -708,6 +761,7 @@ app.post('/module/config/content',
     const conversationId = res.locals.context.conversationId;
     console.log("saving config content for conversation " + conversationId + ": " + prettify_json(req.body));
     configStore[conversationId] = req.body;
+    jsonfile.writeFileSync(`${STORE_DIRECTORY}/config.json`, configStore)
 
     stride.updateConfigurationState({cloudId, conversationId, configKey: 'refapp-config', state: true})
       .then(() => res.sendStatus(204))
